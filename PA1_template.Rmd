@@ -2,19 +2,121 @@
 
 
 ## Loading and preprocessing the data
-
+```{r echo=TRUE}
+activity <- read.csv("activity.csv", header=TRUE)
+str(activity)
+head(activity)
+```
 
 
 ## What is mean total number of steps taken per day?
-
-
+```{r echo=TRUE}
+total_steps_per_day <- tapply(activity$steps, activity$date, sum)
+hist(total_steps_per_day, breaks=50, xlab="Steps per day",
+     main="Total steps per day")
+# interestingly, the mean and median computed by summary() are different from
+# those computed by mean() and median()!
+summary(total_steps_per_day)
+mean(total_steps_per_day, na.rm=T)
+median(total_steps_per_day, na.rm=T)
+```
 
 ## What is the average daily activity pattern?
+Plot the 5-minute intervals vs the mean steps taken per interval.
+```{r echo=TRUE}
+interval_groups <- split(activity, activity$interval)
+mean_steps_per_interval <- sapply(interval_groups,
+                                  function(x) {mean(x$steps, na.rm=T)})
+plot(names(mean_steps_per_interval), mean_steps_per_interval, type="l",
+     main="Average steps per 5 minute time interval",
+     xlab="5 minute interval", ylab="Mean steps per interval")
+```
 
-
+Determine which 5-minute interval contains the maximum number of steps.
+```{r echo=TRUE}
+total_steps_per_interval <- sapply(interval_groups,
+                                   function(x) {sum(x$steps, na.rm=T)})
+which.max(total_steps_per_interval)
+# the 835 interval contains the max number of steps; 104 is just the index of the
+# 835 entry in the vector
+```
 
 ## Imputing missing values
+The total number of missing values in the dataset:
+```{r echo=TRUE}
+num_missing_values <- dim(activity)[1] - sum(complete.cases(activity))
+num_missing_values
+```
 
+Impute missing values using the mean for the 5-minute interval in question.  And
+create a new instance of the dataset containing the imputed data.
+```{r echo=TRUE}
+good <- complete.cases(activity)
+get_interval_mean <- function(interval) {
+  interval_ch <- as.character(interval)
+  idx <- which(names(mean_steps_per_interval)==interval_ch)
+  mean_steps_per_interval[idx]
+}
+activity2 <- activity
+activity2$steps[!good] <- sapply(activity2$interval[!good], FUN=get_interval_mean)
+# verify the missing values are all gone
+num_missing_values2 <- dim(activity2)[1] - sum(complete.cases(activity2))
+num_missing_values2
+```
 
+Histogram, mean and median of total steps per day.
+```{r echo=TRUE}
+total_steps_per_day2 <- tapply(activity2$steps, activity$date, sum)
+hist(total_steps_per_day2, breaks=50, main="Histogram of Total Steps Per Day",
+     xlab="Steps")
+summary(total_steps_per_day2)
+mean(total_steps_per_day2, na.rm=T)
+median(total_steps_per_day2, na.rm=T)
+```
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+Create a new factor variable indicating the type of day: weekday or weekend
+```{r echo=TRUE}
+day_of_week <- weekdays(as.Date(activity2$date))
+get_day_type <- function(x){
+  if (x %in% c("Saturday", "Sunday"))
+    return("weekend")
+  else
+    return("weekday")
+}
+day_type <- sapply(day_of_week, get_day_type)
+day_type <- as.factor(day_type)
+table(day_type)
+```
+
+Plot the 5-minute intervals vs mean steps taken per interval for each of the two day type groups: weekday and weekend
+```{r echo=TRUE}
+day_type_group <- split(activity2, day_type)
+interval_groups <- split(day_type_group$weekday, day_type_group$weekday$interval)
+mean_steps_per_interval_weekday <- sapply(interval_groups,
+                                          function(x) {mean(x$steps, na.rm=T)})
+interval_groups <- split(day_type_group$weekend, day_type_group$weekend$interval)
+mean_steps_per_interval_weekend <- sapply(interval_groups,
+                                          function(x) {mean(x$steps, na.rm=T)})
+
+par(mfrow=c(2,1))
+plot(names(mean_steps_per_interval_weekend), mean_steps_per_interval_weekend,
+     type="l",
+     main="Average steps per 5 minute interval - weekend",
+     xlab="5 minute interval", ylab="Mean steps per interval")
+plot(names(mean_steps_per_interval_weekday), mean_steps_per_interval_weekday,
+     type="l",
+     main="Average steps per 5 minute interval - weekday",
+     xlab="5 minute interval", ylab="Mean steps per interval")
+par(mfrow=c(1,1))
+```
+
+
+
+
+
+
+
+
+
